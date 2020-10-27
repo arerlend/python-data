@@ -1,1 +1,1 @@
-# python-data
+Experimentation with data analysis and visualization packages in Python.
