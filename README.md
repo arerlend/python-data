@@ -1,1 +1,1 @@
-Experimentation with data analysis and visualization packages in Python.
+Getting back into data analysis/visualization.  Variety of languages.
