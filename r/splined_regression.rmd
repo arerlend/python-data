@@ -1,21 +1,20 @@
 ---
-title: 'STAT 365 HW #6'
+title: 'Splined Regression'
 author: "Arthur Erlendsson"
 date: "March 9, 2017"
 output: word_document
 ---
 ```{r}
 library(splines)
-bone <- read.csv("bone.csv")
+bone <- read.csv(url("https://web.stanford.edu/~hastie/ElemStatLearn/datasets/bone.data"),sep="\t")
 head(bone)
+bone$gender = as.factor(bone$gender)
 ```
 
 ```{r}
 plot(x = bone$age,y = bone$spnbmd,xlab = "age",ylab = "spnbmd",col = bone$gender)
 legend(legend = levels(bone$gender),col = c("black","red"),x = "topright",pch=3)
 ```
-
-It almost looks as though $spnbmd$ might correlate with puberty - the variance of female $spnbmd$ decreases sooner than male $spnbmd$, which leads to female $spnbmd$ values sitting close to 0 at a lower age than those of males.
 
 Piecewise quadratic:
 
@@ -119,9 +118,7 @@ curve(predict(mf_cs, data.frame(agegrp=cut(x, breaks=bdf),age=x)), lwd=2, col=2,
 ```
 
 
-I like how the cubic splines look - they're more capable of dealing with the flexibility in the data.  What is a bit concerning is the end effects on the lines - usually one would fix this by using natural splines instead of cubic splines but it's not an option for the problem set.
-
-Let's do cross-validation with cubic splines using five folds:
+Cross-validation with cubic splines using five folds:
 ```{r}
 set.seed(665)
 bm <- bm[sample(1:nrow(bm), replace = FALSE),]
@@ -179,7 +176,7 @@ num_knots
 ```
 
 
-So let's fit on five knots.
+When fit on five knots.
 ```{r}
 bq <- quantile(bone$age,c(.167,.333,.50,.667,.833))
 
