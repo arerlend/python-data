@@ -1,0 +1,201 @@
+---
+title: 'STAT 365 HW #6'
+author: "Arthur Erlendsson"
+date: "March 9, 2017"
+output: word_document
+---
+```{r}
+library(splines)
+bone <- read.csv("bone.csv")
+head(bone)
+```
+
+```{r}
+plot(x = bone$age,y = bone$spnbmd,xlab = "age",ylab = "spnbmd",col = bone$gender)
+legend(legend = levels(bone$gender),col = c("black","red"),x = "topright",pch=3)
+```
+
+It almost looks as though $spnbmd$ might correlate with puberty - the variance of female $spnbmd$ decreases sooner than male $spnbmd$, which leads to female $spnbmd$ values sitting close to 0 at a lower age than those of males.
+
+Piecewise quadratic:
+
+```{r}
+bm <- within(bone[bone$gender == "male",], rm(gender))
+bf <- within(bone[bone$gender == "female",], rm(gender))
+
+bmq <- quantile(bm$age,c(.33,.67))
+bfq <- quantile(bf$age,c(.33,.67))
+
+# hacky but the minimum wasn't being included in the breaks
+bm$agegrp <- cut(bm$age, breaks=c(min(bm$age) - .01,bmq,max(bm$age)))
+bf$agegrp <- cut(bf$age, breaks=c(min(bf$age) - .01,bfq,max(bf$age)))
+
+labm <- levels(bm$agegrp)
+labf <- levels(bf$agegrp)
+
+bdm <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", labm) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", labm) ))
+bdf <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", labf) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", labf) ))
+
+bdm <- c(bdm[,1], bdm[nrow(bdm),2])
+bdf <- c(bdf[,1], bdf[nrow(bdf),2])
+
+mm_pq <- lm(spnbmd ~ agegrp*poly(age, 2, raw=T), data=bm)
+mf_pq <- lm(spnbmd ~ agegrp*poly(age, 2, raw=T), data=bf)
+
+length(coef(mm_pq))
+length(coef(mf_pq))
+
+plot(spnbmd ~ age, data = bm, pch=16, main="male")
+abline(v=bmq,lwd=2,lty=2,col="blue")
+curve(predict(mm_pq, data.frame(agegrp=cut(x, breaks=bdm),age=x)), lwd=2, col=2, add=TRUE)
+
+plot(spnbmd ~ age, data = bf, pch=16, main="female")
+abline(v=bfq,lwd=2,lty=2,col="blue")
+curve(predict(mf_pq, data.frame(agegrp=cut(x, breaks=bdf),age=x)), lwd=2, col=2, add=TRUE)
+```
+
+
+Continuous piecewise quadratic:
+```{r}
+mm_cpq <- lm(spnbmd ~ poly(age,2, raw=T) + 
+            poly(pmax(I(age-bdm[2]),0), 2, raw=T) +
+            poly(pmax(I(age-bdm[3]),0), 2, raw=T), data=bm)
+mf_cpq <- lm(spnbmd ~ poly(age,2, raw=T) + 
+            poly(pmax(I(age-bdf[2]),0), 2, raw=T) +
+            poly(pmax(I(age-bdf[3]),0), 2, raw=T), data=bf)
+
+length(coef(mm_cpq))
+length(coef(mf_cpq))
+
+plot(spnbmd ~ age, data = bm, pch=16,main="male")
+abline(v=bmq,lwd=2,lty=2,col="blue")
+curve(predict(mm_cpq, data.frame(agegrp=cut(x, breaks=bdm),age=x)), lwd=2, col=2, add=TRUE)
+
+plot(spnbmd ~ age, data = bf, pch=16,main="female")
+abline(v=bfq,lwd=2,lty=2,col="blue")
+curve(predict(mf_cpq, data.frame(agegrp=cut(x, breaks=bdf),age=x)), lwd=2, col=2, add=TRUE)
+```
+
+
+Continous piecewise quadratic w/ continuous first derivative:
+```{r}
+mm_fd <- lm(spnbmd ~ poly(age,2, raw=T) + pmax(I(age-bdm[2])^2,0) + 
+            pmax(I(age-bdm[3])^2,0), data=bm)
+mf_fd <- lm(spnbmd ~ poly(age,2, raw=T) + pmax(I(age-bdf[2])^2,0) + 
+            pmax(I(age-bdf[3])^2,0), data=bf)
+
+length(coef(mm_fd))
+length(coef(mf_fd))
+
+plot(spnbmd ~ age, data = bm, pch=16,main="male")
+abline(v=bmq,lwd=2,lty=2,col="blue")
+curve(predict(mm_fd, data.frame(agegrp=cut(x, breaks=bdm),age=x)), lwd=2, col=2, add=TRUE)
+
+plot(spnbmd ~ age, data = bf, pch=16,main="female")
+abline(v=bfq,lwd=2,lty=2,col="blue")
+curve(predict(mf_fd, data.frame(agegrp=cut(x, breaks=bdf),age=x)), lwd=2, col=2, add=TRUE)
+```
+
+
+Cubic spline:
+```{r}
+mm_cs <- lm(spnbmd ~ poly(age,3, raw=T) + pmax(I(age-bdm[2])^3,0) + 
+            pmax(I(age-bdm[3])^3,0), data=bm)
+mf_cs <- lm(spnbmd ~ poly(age,3, raw=T) + pmax(I(age-bdf[2])^3,0) + 
+            pmax(I(age-bdf[3])^3,0), data=bf)
+
+length(coef(mm_cs))
+length(coef(mf_cs))
+
+plot(spnbmd ~ age, data = bm, pch=16,main="male")
+abline(v=bmq,lwd=2,lty=2,col="blue")
+curve(predict(mm_cs, data.frame(agegrp=cut(x, breaks=bdm),age=x)), lwd=2, col=2, add=TRUE)
+
+plot(spnbmd ~ age, data = bf, pch=16,main="female")
+abline(v=bfq,lwd=2,lty=2,col="blue")
+curve(predict(mf_cs, data.frame(agegrp=cut(x, breaks=bdf),age=x)), lwd=2, col=2, add=TRUE)
+```
+
+
+I like how the cubic splines look - they're more capable of dealing with the flexibility in the data.  What is a bit concerning is the end effects on the lines - usually one would fix this by using natural splines instead of cubic splines but it's not an option for the problem set.
+
+Let's do cross-validation with cubic splines using five folds:
+```{r}
+set.seed(665)
+bm <- bm[sample(1:nrow(bm), replace = FALSE),]
+bf <- bf[sample(1:nrow(bf), replace = FALSE),]
+foldm <- as.numeric(cut(1:nrow(bm), 5))
+foldf <- as.numeric(cut(1:nrow(bf), 5))
+
+errm <- rep(0,6)
+errf <- rep(0,6)
+
+for (i in 2:7) {
+  quants <- levels(cut(0:100,i+1))
+  quants <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", quants) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", quants) ))
+  quants <- quants[-nrow(quants),2]
+  
+  bmq <- quantile(bm$age,quants/100)
+  bmf <- quantile(bf$age,quants/100)
+  
+  bm$agegrp <- cut(bm$age, breaks=c(min(bm$age) - .01,bmq,max(bm$age)))
+  bf$agegrp <- cut(bf$age, breaks=c(min(bf$age) - .01,bfq,max(bf$age)))
+  
+  labm <- levels(bm$agegrp)
+  labf <- levels(bf$agegrp)
+  
+  bdm <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", labm) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", labm) ))
+  bdf <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", labf) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", labf) ))
+  
+  bdm <- c(bdm[,1], bdm[nrow(bdm),2])
+  bdf <- c(bdf[,1], bdf[nrow(bdf),2])
+  
+  for (f in 1:5) {
+    bm_train <- bm[foldm != f,]
+    bm_valid <- bm[foldm == f,]
+    bf_train <- bf[foldf != f,]
+    bf_valid <- bf[foldf == f,]
+    
+    mm <- lm(spnbmd ~ bs(age, knots=bdm[2:i+1]), data=bm_train)
+    mf <- lm(spnbmd ~ bs(age, knots=bdf[2:i+1]), data=bf_train)
+    
+    pm <- predict(mm, newdata=bm_valid)
+    pf <- predict(mf, newdata=bf_valid)
+    
+    errm[i-1] <- errm[i-1] + sum((bm_valid$spnbmd - pm)^2,na.rm=TRUE)/nrow(bm_valid)
+    errf[i-1] <- errf[i-1] + sum((bf_valid$spnbmd - pf)^2,na.rm=TRUE)/nrow(bf_valid)
+  }
+}
+
+err <- errm + errf
+err
+num_knots <- which.min(err) + 1
+num_knots
+```
+
+
+So let's fit on five knots.
+```{r}
+bq <- quantile(bone$age,c(.167,.333,.50,.667,.833))
+
+# hacky but the minimum wasn't being included in the breaks
+bone$agegrp <- cut(bone$age, breaks=c(min(bone$age) - .01,bq,max(bone$age)))
+
+labs <- levels(bone$agegrp)
+
+bds <- cbind(lower = as.numeric( sub("\\((.+),.*", "\\1", labs) ),
+      upper = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", labs) ))
+
+bds <- c(bds[,1], bds[nrow(bds),2])
+
+m_opt <- lm(spnbmd ~ bs(age, knots=bds[2:6]), data=bone)
+
+plot(spnbmd ~ age, data = bone, pch=16,main="all data")
+abline(v=bq,lwd=2,lty=2,col="blue")
+curve(predict(m_opt, data.frame(agegrp=cut(x, breaks=bds),age=x)), lwd=2, col=2, add=TRUE)
+```
